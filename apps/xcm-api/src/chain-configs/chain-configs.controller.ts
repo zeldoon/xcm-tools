@@ -3,7 +3,11 @@ import type { TChain, TSubstrateChain } from '@paraspell/sdk';
 
 import { AnalyticsService } from '../analytics/analytics.service.js';
 import { EventName } from '../analytics/EventName.js';
-import { ChainSchema, SubstrateChainSchema } from '../dto/ChainDto.js';
+import {
+  ChainSchema,
+  ParaIdSchema,
+  SubstrateChainSchema,
+} from '../dto/ChainDto.js';
 import { ZodValidationPipe } from '../zod-validation-pipe.js';
 import { ChainConfigsService } from './chain-configs.service.js';
 
@@ -50,14 +54,14 @@ export class ChainConfigsController {
 
   @Get(':paraId')
   getAssetsObject(
-    @Param('paraId') paraId: string,
+    @Param('paraId', new ZodValidationPipe(ParaIdSchema)) paraId: number,
     @Query('ecosystem') ecosystem: string | undefined,
     @Req() req: Request,
   ) {
     this.analyticsService.track(EventName.GET_CHAIN_BY_PARA_ID, req, {
       paraId,
     });
-    return this.service.getChainByParaId(Number(paraId), ecosystem);
+    return this.service.getChainByParaId(paraId, ecosystem);
   }
 
   @Get(':chain/has-dry-run-support')

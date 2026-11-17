@@ -73,8 +73,10 @@ describe('AssetsController', () => {
 
   describe('getChainByParaId', () => {
     it('should return assets object for a valid parachain id', () => {
-      const paraId = '2009';
-      const spy = vi.spyOn(service, 'getChainByParaId').mockReturnValue(paraId);
+      const paraId = 2009;
+      const spy = vi
+        .spyOn(service, 'getChainByParaId')
+        .mockReturnValue('"Astar"');
 
       const result = controller.getAssetsObject(
         paraId,
@@ -82,8 +84,8 @@ describe('AssetsController', () => {
         mockRequestObject,
       );
 
-      expect(result).toBe(paraId);
-      expect(spy).toHaveBeenCalledWith(Number(paraId), 'polkadot');
+      expect(result).toBe('"Astar"');
+      expect(spy).toHaveBeenCalledWith(paraId, 'polkadot');
     });
   });
 

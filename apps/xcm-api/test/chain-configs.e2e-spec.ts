@@ -78,6 +78,16 @@ describe('Chain configs controller (e2e)', () => {
       .expect(400);
   });
 
+  it.each(['%20', '-0', '0x7d0', '2e3', '2000.0'])(
+    'Get chain by para id - non-decimal para id - /chains/%s?ecosystem=Polkadot (GET)',
+    (paraId) => {
+      return request(app.getHttpServer())
+        .get(`/chains/${paraId}`)
+        .query({ ecosystem: 'Polkadot' })
+        .expect(400);
+    },
+  );
+
   it('Get convert ss58 - /convert-ss58 (GET)', () => {
     return request(app.getHttpServer())
       .get('/convert-ss58')
