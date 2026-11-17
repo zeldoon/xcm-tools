@@ -85,4 +85,59 @@ describe('findAssetInfoByLoc', () => {
     })
     expect(result).toBe(usdc)
   })
+
+  it('matches a JSON string location regardless of whitespace and key order', () => {
+    const pretty = JSON.stringify({ interior: { Here: null }, parents: 1 }, null, 2)
+    expect(findAssetInfoByLoc(assets, pretty)).toBe(relayNative)
+  })
+
+  it('matches a JSON string location that uses the "Here" shorthand', () => {
+    expect(findAssetInfoByLoc(assets, '{"parents":1,"interior":"Here"}')).toBe(relayNative)
+  })
+
+  it('matches string junction values against numeric asset locations', () => {
+    const asString = JSON.stringify({
+      parents: 1,
+      interior: {
+        X3: [{ Parachain: 1000 }, { PalletInstance: 50 }, { GeneralIndex: '1337' }]
+      }
+    })
+    const withSeparators = JSON.stringify({
+      parents: 1,
+      interior: {
+        X3: [{ Parachain: '1,000' }, { PalletInstance: '50' }, { GeneralIndex: '1,337' }]
+      }
+    })
+    expect(findAssetInfoByLoc(assets, asString)).toBe(usdc)
+    expect(findAssetInfoByLoc(assets, withSeparators)).toBe(usdc)
+  })
+
+  it('matches a JSON string location in XCM V3 X1 object form', () => {
+    const parachainAsset: TAssetInfo = {
+      symbol: 'ASTR',
+      decimals: 18,
+      existentialDeposit: '1000',
+      location: { parents: 1, interior: { X1: [{ Parachain: 2006 }] } }
+    }
+    const v3 = JSON.stringify({ parents: 1, interior: { X1: { Parachain: 2006 } } })
+    expect(findAssetInfoByLoc([...assets, parachainAsset], v3)).toBe(parachainAsset)
+  })
+
+  it('matches object locations with string junction values', () => {
+    const result = findAssetInfoByLoc(assets, {
+      parents: 1,
+      interior: {
+        X3: [{ Parachain: 1000 }, { PalletInstance: 50 }, { GeneralIndex: '1,337' }]
+      }
+    })
+    expect(result).toBe(usdc)
+  })
+
+  it('does not match a different JSON string location', () => {
+    expect(findAssetInfoByLoc(assets, '{"parents":0,"interior":"Here"}')).toBeUndefined()
+  })
+
+  it('falls back to plain string comparison for non-JSON input', () => {
+    expect(findAssetInfoByLoc(assets, 'not a location')).toBeUndefined()
+  })
 })
