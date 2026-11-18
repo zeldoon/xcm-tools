@@ -20,7 +20,7 @@ import type {
   TTypeAndThenCallContext,
   TTypeAndThenOverrides
 } from '../../types'
-import { assertToIsString, getRelayChainOf } from '../../utils'
+import { assertToIsString, getChain, getRelayChainOf } from '../../utils'
 import { getEthereumJunction } from '../../utils/location/getEthereumJunction'
 import { getFeeAssetInfo } from '../../utils/transfer/getFeeAssetInfo'
 import { resolveEdDeposit } from '../../utils/transfer/resolveEdDeposit'
@@ -179,6 +179,20 @@ export const createTypeAndThenCallContext = async <
       : undefined
 
   const routedChain = bridgeHopChain ?? (reserveChain === chain ? destination : reserveChain)
+
+  // The last hop delivers the assets from the routed chain (reserve / bridge hop) to the destination.
+  // If the destination cannot receive from that chain (no open HRMP channel), the origin leg
+  // would still succeed and the assets would be stuck on the routed chain.
+  if (
+    routedChain !== chain &&
+    routedChain !== destination &&
+    !isExternalDestination &&
+    !getChain(destination).hasChannelFrom(routedChain)
+  ) {
+    throw new ScenarioNotSupportedError(
+      `${destination} cannot receive from ${routedChain}, which this transfer would route through`
+    )
+  }
 
   if (
     feeReserveChain !== undefined &&

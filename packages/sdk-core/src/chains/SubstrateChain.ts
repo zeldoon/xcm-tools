@@ -319,6 +319,15 @@ abstract class SubstrateChain<
     return true
   }
 
+  /**
+   * Whether an XCM message can be delivered to this chain from `chain` (e.g. an open HRMP channel).
+   * Used for the last hop of transfers routed through a reserve chain, where the origin leg would
+   * succeed and the assets would be stuck on the reserve if the message cannot be delivered.
+   */
+  hasChannelFrom<TCustomChain extends string = never>(_chain: TChain | TCustomChain): boolean {
+    return true
+  }
+
   shouldUseNativeAssetTeleport({
     api,
     assetInfo: asset,

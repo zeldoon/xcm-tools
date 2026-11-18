@@ -353,6 +353,10 @@ describe('Parachain', () => {
     })
   })
 
+  it('has a channel from any chain by default', () => {
+    expect(chain.hasChannelFrom('Hydration')).toBe(true)
+  })
+
   it('throws when destination chain cannot receive from origin (canReceiveFrom=false)', async () => {
     const chain = new TestParachain('Acala', 'TestChain', 'Polkadot', Version.V4)
 

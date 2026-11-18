@@ -18,4 +18,12 @@ describe('Shiden', () => {
     expect(chain.ecosystem).toBe('Kusama')
     expect(chain.version).toBe(Version.V5)
   })
+
+  it('has no channel from chains without an open HRMP channel to Shiden', () => {
+    expect(chain.hasChannelFrom('AssetHubKusama')).toBe(true)
+    expect(chain.hasChannelFrom('BifrostKusama')).toBe(false)
+    expect(chain.hasChannelFrom('Karura')).toBe(false)
+    expect(chain.hasChannelFrom('Basilisk')).toBe(false)
+    expect(chain.canReceiveFrom('Karura')).toBe(true)
+  })
 })

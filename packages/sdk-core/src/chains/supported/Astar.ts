@@ -1,7 +1,7 @@
 // Contains detailed structure of XCM call construction for Astar Parachain
 
 import type { TAssetInfo } from '@paraspell/assets'
-import type { TParachain, TRelaychain } from '@paraspell/sdk-common'
+import type { TChain, TParachain, TRelaychain } from '@paraspell/sdk-common'
 import { deepEqual, Version } from '@paraspell/sdk-common'
 
 import { RELAY_LOCATION } from '../../constants'
@@ -77,6 +77,11 @@ class Astar<TApi, TRes, TSigner, TCustomChain extends string = never>
         amount: asset.amount
       }
     })
+  }
+
+  hasChannelFrom<TCustomChain extends string = never>(chain: TChain | TCustomChain): boolean {
+    // There is no open HRMP channel from Unique to Astar
+    return chain !== 'Unique'
   }
 }
 

@@ -20,7 +20,7 @@ import type { PolkadotApi } from '../../api'
 import { RELAY_LOCATION } from '../../constants'
 import { ScenarioNotSupportedError } from '../../errors'
 import type { TPolkadotXCMTransferOptions, TTypeAndThenCallContext } from '../../types'
-import { getRelayChainOf } from '../../utils'
+import { getChain, getRelayChainOf } from '../../utils'
 import { getEthereumJunction } from '../../utils/location/getEthereumJunction'
 import { resolveEdDeposit } from '../../utils/transfer/resolveEdDeposit'
 import {
@@ -203,6 +203,33 @@ describe('createTypeAndThenCallContext', () => {
       location: wudLocation
     })
     findNativeAssetInfoOrThrowSpy.mockReturnValue(mockSystemAsset)
+    vi.mocked(getChain).mockReturnValue({ hasChannelFrom: () => true } as unknown as ReturnType<
+      typeof getChain
+    >)
+  })
+
+  it('throws when the destination cannot receive from the reserve chain', async () => {
+    const hasChannelFrom = vi.fn().mockReturnValue(false)
+    vi.mocked(getChain).mockReturnValue({ hasChannelFrom } as unknown as ReturnType<
+      typeof getChain
+    >)
+
+    await expect(createTypeAndThenCallContext(mockOptions, {})).rejects.toThrow(
+      ScenarioNotSupportedError
+    )
+    expect(hasChannelFrom).toHaveBeenCalledWith(mockReserveChain)
+  })
+
+  it('does not check the reserve hop when the reserve is the origin', async () => {
+    const hasChannelFrom = vi.fn().mockReturnValue(false)
+    vi.mocked(getChain).mockReturnValue({ hasChannelFrom } as unknown as ReturnType<
+      typeof getChain
+    >)
+    getAssetReserveChainSpy.mockReturnValue(mockChain)
+
+    await createTypeAndThenCallContext(mockOptions, {})
+
+    expect(hasChannelFrom).not.toHaveBeenCalled()
   })
 
   it('adds the resolved ED deposit to the context', async () => {

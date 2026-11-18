@@ -139,4 +139,10 @@ describe('Astar', () => {
       })
     })
   })
+
+  it('has no channel from Unique', () => {
+    expect(astar.hasChannelFrom('Unique')).toBe(false)
+    expect(astar.hasChannelFrom('AssetHubPolkadot')).toBe(true)
+    expect(astar.hasChannelFrom('Hydration')).toBe(true)
+  })
 })
