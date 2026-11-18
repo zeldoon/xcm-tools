@@ -95,7 +95,7 @@ describe('validateAddress', () => {
   })
 
   it('should skip validation for public key format (0x prefix but not EVM address)', () => {
-    const address: TAddress = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12'
+    const address: TAddress = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
     const chain: TChain = 'Polkadot'
 
     vi.spyOn(mockApi, 'isChainEvm').mockReturnValue(false)
@@ -167,5 +167,28 @@ describe('validateAddress', () => {
       expect(error).toBeInstanceOf(InvalidAddressError)
       expect((error as InvalidAddressError).constructor.name).toBe('InvalidAddressError')
     }
+  })
+
+  it.each([
+    ['33 bytes (would be truncated)', `0x${'d4'.repeat(32)}00`],
+    ['odd length (would be shifted by a nibble)', `0x${'d4'.repeat(32)}0`],
+    ['31 bytes', `0x${'d4'.repeat(31)}`],
+    ['non-hex characters', `0x${'d4'.repeat(31)}zz`],
+    ['empty hex', '0x']
+  ])('should throw InvalidAddressError for malformed hex public key: %s', (_, address) => {
+    vi.spyOn(mockApi, 'isChainEvm').mockReturnValue(false)
+    vi.mocked(isAddress).mockReturnValue(false)
+
+    expect(() => validateAddress(mockApi, address, 'Polkadot')).toThrow(InvalidAddressError)
+    expect(() => validateAddress(mockApi, address, 'Polkadot')).toThrow(
+      'Hex public keys must be exactly 32 bytes'
+    )
+  })
+
+  it('should accept an uppercase 32-byte hex public key', () => {
+    vi.spyOn(mockApi, 'isChainEvm').mockReturnValue(false)
+    vi.mocked(isAddress).mockReturnValue(false)
+
+    expect(() => validateAddress(mockApi, `0x${'D4'.repeat(32)}`, 'Polkadot')).not.toThrow()
   })
 })
