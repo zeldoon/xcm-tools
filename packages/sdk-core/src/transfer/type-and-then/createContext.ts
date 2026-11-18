@@ -1,4 +1,4 @@
-import { extractAssetLocation } from '@paraspell/assets'
+import { extractAssetLocation, isAssetEqual } from '@paraspell/assets'
 import type { TChain } from '@paraspell/sdk-common'
 import {
   deepEqual,
@@ -24,6 +24,7 @@ import { assertToIsString, getRelayChainOf } from '../../utils'
 import { getEthereumJunction } from '../../utils/location/getEthereumJunction'
 import { getFeeAssetInfo } from '../../utils/transfer/getFeeAssetInfo'
 import { resolveEdDeposit } from '../../utils/transfer/resolveEdDeposit'
+import { isNonFeeAssetOnDest, validateDestFeeAsset } from '../utils/validateDestFeeAsset'
 
 const PINK_LOCATION: TLocation = {
   parents: 1,
@@ -146,9 +147,24 @@ export const createTypeAndThenCallContext = async <
     assetGlobalConsensus,
     getEthereumJunction(api, chain, false).GlobalConsensus
   )
+  // The destination does not accept the transferred asset for XCM fees, so the remote fees
+  // have to be paid with the system asset, otherwise BuyExecution fails and the assets get trapped
+  const isNonFeeAsset = () =>
+    !feeAssetInfo &&
+    !transferredAsset &&
+    !isAssetEqual(assetInfo, systemAsset) &&
+    isNonFeeAssetOnDest(api, destination, assetInfo)
+  const isNonFeeAssetToPara =
+    !isExternalDestination && !isRelayChain(destination) && isNonFeeAsset()
+  // Only AssetHub can add the system asset as the remote fee, other origins would send
+  // it from a reserve the destination does not trust, so reject the transfer instead
+  if (isNonFeeAssetToPara && !chain.startsWith('AssetHub')) {
+    validateDestFeeAsset(api, destination, assetInfo, feeAssetInfo, transferredAsset)
+  }
   const requiresSystemAsset =
     !isExternalDestination &&
     (isSnowbridgeAsset ||
+      isNonFeeAssetToPara ||
       (!isRelayChain(destination) && requiresSystemAssetByLocation(api, assetInfo.location)))
   const isAssetHubToExternal = chain.startsWith('AssetHub') && isExternalDestination
   const isForeignRelayToExternal =

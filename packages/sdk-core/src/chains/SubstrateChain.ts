@@ -26,6 +26,7 @@ import { NoXCMSupportImplementedError } from '../errors/NoXCMSupportImplementedE
 import { getPalletInstance } from '../pallets'
 import { handleTransactUsingSend, transferPolkadotXcm } from '../pallets/polkadotXcm'
 import { createTypeAndThenCall, validateFeeAssetSupport } from '../transfer'
+import { validateDestFeeAsset } from '../transfer/utils/validateDestFeeAsset'
 import type {
   IPolkadotXCMTransfer,
   IXTokensTransfer,
@@ -250,6 +251,7 @@ abstract class SubstrateChain<
       }
     } else if (supportsXTokens<TApi, TRes, TSigner, TCustomChain>(this)) {
       validateFeeAssetSupport(asset, feeAsset, overriddenAsset, 'XTokens')
+      validateDestFeeAsset(api, destChain, asset, feeAsset, overriddenAsset)
 
       const input: TXTokensTransferOptions<TApi, TRes, TSigner, TCustomChain> = {
         api,

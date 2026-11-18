@@ -14,7 +14,7 @@ import {
   type TLocation,
   type TSubstrateChain
 } from '@paraspell/sdk-common'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PolkadotApi } from '../../api'
 import { RELAY_LOCATION } from '../../constants'
@@ -174,7 +174,9 @@ describe('createTypeAndThenCallContext', () => {
     findAssetInfoOrThrow: vi.fn(),
     findNativeAssetInfoOrThrow: vi.fn(),
     getAssetReserveChain: vi.fn(),
-    getRelayChainOf: vi.fn()
+    getRelayChainOf: vi.fn(),
+    hasXcmPaymentApiSupport: vi.fn().mockReturnValue(false),
+    getAssets: vi.fn().mockReturnValue([])
   } as unknown as PolkadotApi<unknown, unknown, unknown>
 
   const findNativeAssetInfoOrThrowSpy = vi.spyOn(mockApi, 'findNativeAssetInfoOrThrow')
@@ -495,6 +497,82 @@ describe('createTypeAndThenCallContext', () => {
       expect(result.systemAsset).toBe(mockSystemAsset)
     }
   )
+
+  describe('destination does not accept the asset for XCM fees', () => {
+    const billAsset = {
+      ...mockAsset,
+      symbol: 'BILL',
+      location: {
+        parents: 1,
+        interior: {
+          X3: [{ Parachain: 1000 }, { PalletInstance: 50 }, { GeneralIndex: 50000075 }]
+        }
+      } as TLocation
+    }
+    const destAssets = [
+      { ...mockSystemAsset, isFeeAsset: true },
+      { ...billAsset, isFeeAsset: undefined }
+    ]
+    const options = {
+      ...mockOptions,
+      chain: 'AssetHubPolkadot' as const,
+      destination: 'Hydration' as const,
+      assetInfo: billAsset
+    }
+
+    beforeEach(() => {
+      vi.mocked(isAssetEqual).mockImplementation(
+        (a, b) => JSON.stringify(a.location) === JSON.stringify(b.location)
+      )
+      vi.spyOn(mockApi, 'hasXcmPaymentApiSupport').mockReturnValue(true)
+      vi.spyOn(mockApi, 'getAssets').mockReturnValue(destAssets)
+      getAssetReserveChainSpy.mockReturnValue('AssetHubPolkadot')
+    })
+
+    afterEach(() => {
+      vi.mocked(isAssetEqual).mockReset()
+      vi.spyOn(mockApi, 'hasXcmPaymentApiSupport').mockReturnValue(false)
+      vi.spyOn(mockApi, 'getAssets').mockReturnValue([])
+    })
+
+    it('pays the remote fees with the system asset', async () => {
+      const getAssetsSpy = vi.spyOn(mockApi, 'getAssets')
+
+      const result = await createTypeAndThenCallContext(options, { noFeeAsset: true })
+
+      expect(getAssetsSpy).toHaveBeenCalledWith('Hydration')
+      expect(result.isRelayAsset).toBe(false)
+      expect(result.systemAsset).toBe(mockSystemAsset)
+    })
+
+    it('rejects the transfer when the origin is not AssetHub', async () => {
+      await expect(
+        createTypeAndThenCallContext(
+          { ...options, chain: 'BifrostPolkadot' as const },
+          { noFeeAsset: true }
+        )
+      ).rejects.toThrow('BILL is not accepted as an XCM fee asset on Hydration')
+    })
+
+    it('keeps paying with the asset when the destination accepts it', async () => {
+      vi.spyOn(mockApi, 'getAssets').mockReturnValue([
+        { ...mockSystemAsset, isFeeAsset: true },
+        { ...billAsset, isFeeAsset: true }
+      ] as TAssetInfo[])
+
+      const result = await createTypeAndThenCallContext(options, { noFeeAsset: true })
+
+      expect(result.isRelayAsset).toBe(true)
+    })
+
+    it('keeps paying with the asset when the destination has no XcmPaymentApi', async () => {
+      vi.spyOn(mockApi, 'hasXcmPaymentApiSupport').mockReturnValue(false)
+
+      const result = await createTypeAndThenCallContext(options, { noFeeAsset: true })
+
+      expect(result.isRelayAsset).toBe(true)
+    })
+  })
 
   it('does not require a separate relay asset for WUD sent to the relay chain', async () => {
     vi.mocked(isRelayChain).mockImplementation(chain => chain === 'Polkadot')

@@ -106,4 +106,34 @@ describe('transferPolkadotXcm', () => {
       }
     })
   })
+
+  it('rejects a reserve transfer whose asset the destination does not accept for XCM fees', async () => {
+    const astrLocation: TLocation = { parents: 1, interior: { X1: [{ Parachain: 2006 }] } }
+    const deserializeExtrinsics = vi.fn()
+    const api = {
+      deserializeExtrinsics,
+      hasXcmPaymentApiSupport: vi.fn().mockReturnValue(true),
+      getAssets: vi.fn().mockReturnValue([
+        {
+          symbol: 'DOT',
+          decimals: 10,
+          location: { parents: 1, interior: { Here: null } },
+          isFeeAsset: true
+        },
+        { symbol: 'ASTR', decimals: 18, location: astrLocation }
+      ])
+    } as unknown as PolkadotApi<unknown, unknown, unknown>
+
+    const options = {
+      ...baseOptions,
+      api,
+      destChain: 'Hydration',
+      assetInfo: { symbol: 'ASTR', amount: 123n, location: astrLocation } as WithAmount<TAssetInfo>
+    } as TPolkadotXCMTransferOptions<unknown, unknown, unknown>
+
+    await expect(transferPolkadotXcm(options, 'reserve_transfer_assets')).rejects.toThrow(
+      'ASTR is not accepted as an XCM fee asset on Hydration'
+    )
+    expect(deserializeExtrinsics).not.toHaveBeenCalled()
+  })
 })

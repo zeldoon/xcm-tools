@@ -52,7 +52,8 @@ vi.mock('@paraspell/pallets', { spy: true })
 vi.mock('../pallets')
 
 vi.mock('../transfer', () => ({
-  createTypeAndThenCall: vi.fn()
+  createTypeAndThenCall: vi.fn(),
+  validateFeeAssetSupport: vi.fn()
 }))
 
 class TestParachainBase extends SubstrateChain<unknown, unknown, unknown> {
@@ -93,6 +94,12 @@ class ExecuteTransferParachain extends TestParachainBase {
 
 class NoSupportParachain extends TestParachainBase {}
 
+class OnlyXTokensParachain extends TestParachainBase {
+  transferXTokens() {
+    return 'transferXTokens called'
+  }
+}
+
 describe('Parachain', () => {
   let chain: TestParachain
 
@@ -109,6 +116,8 @@ describe('Parachain', () => {
     getNativeAssetSymbol: vi.fn(),
     getRelayChainSymbol: vi.fn().mockReturnValue('DOT'),
     hasPallet: vi.fn().mockReturnValue(false),
+    hasXcmPaymentApiSupport: vi.fn().mockReturnValue(false),
+    getAssets: vi.fn().mockReturnValue([]),
     localizeLocation: vi.fn()
   } as unknown as PolkadotApi<unknown, unknown, unknown>
 
@@ -249,6 +258,40 @@ describe('Parachain', () => {
     expect(transferPolkadotXCMSpy).toHaveBeenCalled()
     expect(createTypeAndThenCall).not.toHaveBeenCalled()
     expect(result).toBe('transferPolkadotXCM called')
+  })
+
+  it('rejects an XTokens transfer whose asset cannot pay execution fees on the destination', async () => {
+    const chain = new OnlyXTokensParachain('Acala', 'TestChain', 'Polkadot', Version.V4)
+    const astrLocation = { parents: 1, interior: { X1: [{ Parachain: 2006 }] } }
+    const options = {
+      api,
+      to: 'Hydration',
+      recipient: 'destinationAddress',
+      assetInfo: {
+        symbol: 'ASTR',
+        amount: 100n,
+        location: astrLocation
+      }
+    } as TTransferInternalOptions<unknown, unknown, unknown>
+
+    vi.spyOn(api, 'hasMethod').mockResolvedValue(false)
+    vi.spyOn(api, 'hasXcmPaymentApiSupport').mockReturnValueOnce(true)
+    vi.spyOn(api, 'getAssets').mockReturnValueOnce([
+      { symbol: 'DOT', decimals: 10, location: RELAY_LOCATION, isFeeAsset: true },
+      { symbol: 'ASTR', decimals: 18, location: astrLocation }
+    ] as TAssetInfo[])
+    vi.mocked(resolveDestChain).mockReturnValue('Hydration')
+    vi.mocked(getChain).mockReturnValue({
+      canReceiveFrom: () => true,
+      isReceivingTempDisabled: () => false
+    } as unknown as ReturnType<typeof chains<unknown, unknown, unknown>>['Hydration'])
+
+    const transferXTokensSpy = vi.spyOn(chain, 'transferXTokens')
+
+    await expect(chain.transfer(options)).rejects.toThrow(
+      'ASTR is not accepted as an XCM fee asset on Hydration'
+    )
+    expect(transferXTokensSpy).not.toHaveBeenCalled()
   })
 
   it('uses type-and-then with a user fee asset and validates the scenario with it', async () => {
