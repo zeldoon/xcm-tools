@@ -4,10 +4,11 @@ import { getXcmPallet, type TPallet } from '@paraspell/pallets'
 import { isExternalChain } from '@paraspell/sdk-common'
 
 import { DEFAULT_FEE_ASSET } from '../../constants'
+import { ScenarioNotSupportedError } from '../../errors'
 import { createTypeAndThenCall, validateFeeAssetSupport } from '../../transfer'
 import type { TPolkadotXcmMethod, TSerializedExtrinsics } from '../../types'
 import { type TPolkadotXCMTransferOptions } from '../../types'
-import { addXcmVersionHeader } from '../../utils'
+import { addXcmVersionHeader, isAhTeleportOnlyAssetFromNonReserve } from '../../utils'
 import { maybeOverrideAssets } from '../../utils/asset'
 import { createDestination } from '../../utils/location'
 
@@ -20,6 +21,7 @@ export const transferPolkadotXcm = async <TApi, TRes, TSigner, TCustomChain exte
     api,
     chain,
     destination,
+    destChain,
     assetInfo: asset,
     beneficiaryLocation,
     asset: multiAsset,
@@ -37,6 +39,18 @@ export const transferPolkadotXcm = async <TApi, TRes, TSigner, TCustomChain exte
   }
 
   validateFeeAssetSupport(asset, feeAssetInfo, overriddenAsset, methodOverride ?? method)
+
+  // AssetHub only accepts these assets by teleport from their reserve chain, a reserve transfer
+  // from any other chain fails there with UntrustedReserveLocation and traps the assets
+  if (
+    (methodOverride ?? method).includes('reserve_transfer_assets') &&
+    destChain &&
+    isAhTeleportOnlyAssetFromNonReserve(api, chain, destChain, asset)
+  ) {
+    throw new ScenarioNotSupportedError(
+      `${asset.symbol} can only be transferred to ${destChain} by teleport from its reserve chain, a reserve transfer from ${chain} would be rejected there and the assets would be trapped.`
+    )
+  }
 
   const resolvedMultiAssets = maybeOverrideAssets(
     version,

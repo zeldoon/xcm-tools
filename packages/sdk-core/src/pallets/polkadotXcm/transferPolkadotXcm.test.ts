@@ -106,4 +106,35 @@ describe('transferPolkadotXcm', () => {
       }
     })
   })
+
+  it('rejects a reserve transfer of an asset AssetHub only accepts by teleport from its reserve', async () => {
+    const vdot = {
+      symbol: 'vDOT',
+      amount: 123n,
+      location: { parents: 1, interior: { X2: [{ Parachain: 2030 }, { GeneralIndex: 9 }] } }
+    } as unknown as WithAmount<TAssetInfo>
+    const api = {
+      deserializeExtrinsics: vi.fn(),
+      findAssetInfo: vi
+        .fn()
+        .mockImplementation((chain: string) => (chain === 'BifrostPolkadot' ? vdot : null)),
+      getRelayChainOf: vi.fn().mockReturnValue('Polkadot')
+    } as unknown as PolkadotApi<unknown, unknown, unknown>
+    const deserializeSpy = vi.spyOn(api, 'deserializeExtrinsics')
+
+    await expect(
+      transferPolkadotXcm(
+        {
+          ...baseOptions,
+          api,
+          chain: 'Astar',
+          destChain: 'AssetHubPolkadot',
+          destination: 'AssetHubPolkadot',
+          assetInfo: vdot
+        },
+        'reserve_transfer_assets'
+      )
+    ).rejects.toThrow('vDOT can only be transferred to AssetHubPolkadot by teleport')
+    expect(deserializeSpy).not.toHaveBeenCalled()
+  })
 })

@@ -2,7 +2,7 @@ import { isAssetEqual, type TAssetInfo } from '@paraspell/assets'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PolkadotApi } from '../../api'
-import { isNativeAssetTeleport } from './isNativeAssetTeleport'
+import { isAhTeleportOnlyAssetFromNonReserve, isNativeAssetTeleport } from './isNativeAssetTeleport'
 
 vi.mock('@paraspell/assets', { spy: true })
 
@@ -11,9 +11,11 @@ describe('isNativeAssetTeleport', () => {
   const asset = { symbol: 'GLMR', location: { parents: 1, interior: 'Here' } } as TAssetInfo
 
   const findNativeAssetInfoOrThrow = vi.fn()
+  const findAssetInfo = vi.fn()
   const getRelayChainOf = vi.fn()
   const api = {
     findNativeAssetInfoOrThrow,
+    findAssetInfo,
     getRelayChainOf
   } as unknown as PolkadotApi<unknown, unknown, unknown>
 
@@ -72,5 +74,90 @@ describe('isNativeAssetTeleport', () => {
   it('returns false when the asset is not the parachain native', () => {
     vi.mocked(isAssetEqual).mockReturnValue(false)
     expect(isNativeAssetTeleport(api, 'Darwinia', 'AssetHubPolkadot', asset)).toBe(false)
+  })
+
+  describe('non-native assets AssetHub registers as teleportable', () => {
+    const vdot = {
+      symbol: 'vDOT',
+      location: {
+        parents: 1,
+        interior: {
+          X2: [
+            { Parachain: 2030 },
+            {
+              GeneralKey: {
+                length: 2,
+                data: '0x0900000000000000000000000000000000000000000000000000000000000000'
+              }
+            }
+          ]
+        }
+      }
+    } as TAssetInfo
+
+    beforeEach(() => {
+      findAssetInfo.mockReturnValue(vdot)
+      vi.mocked(isAssetEqual).mockImplementation(
+        (a, b) => JSON.stringify(a.location) === JSON.stringify(b.location)
+      )
+    })
+
+    it('teleports vDOT between Bifrost and AssetHub in both directions', () => {
+      expect(isNativeAssetTeleport(api, 'BifrostPolkadot', 'AssetHubPolkadot', vdot)).toBe(true)
+      expect(isNativeAssetTeleport(api, 'AssetHubPolkadot', 'BifrostPolkadot', vdot)).toBe(true)
+      expect(findAssetInfo).toHaveBeenCalledWith('BifrostPolkadot', { symbol: 'vDOT' }, null)
+    })
+
+    it('does not teleport vDOT from a chain that is not its reserve', () => {
+      expect(isNativeAssetTeleport(api, 'Hydration', 'AssetHubPolkadot', vdot)).toBe(false)
+      expect(findAssetInfo).not.toHaveBeenCalled()
+    })
+
+    it('does not teleport other Bifrost assets', () => {
+      const vastr = {
+        ...vdot,
+        symbol: 'vASTR',
+        location: { parents: 1, interior: { X1: [{ Parachain: 2030 }] } }
+      }
+      expect(
+        isNativeAssetTeleport(api, 'BifrostPolkadot', 'AssetHubPolkadot', vastr as TAssetInfo)
+      ).toBe(false)
+    })
+  })
+
+  describe('isAhTeleportOnlyAssetFromNonReserve', () => {
+    const vdot = {
+      symbol: 'vDOT',
+      location: { parents: 1, interior: { X2: [{ Parachain: 2030 }, { GeneralIndex: 9 }] } }
+    } as unknown as TAssetInfo
+
+    beforeEach(() => {
+      findAssetInfo.mockImplementation((chain: string) =>
+        chain === 'BifrostPolkadot' ? vdot : null
+      )
+      vi.mocked(isAssetEqual).mockImplementation(
+        (a, b) => JSON.stringify(a.location) === JSON.stringify(b.location)
+      )
+    })
+
+    it('is true for vDOT sent to AssetHub from a chain other than Bifrost', () => {
+      expect(isAhTeleportOnlyAssetFromNonReserve(api, 'Astar', 'AssetHubPolkadot', vdot)).toBe(true)
+      expect(isAhTeleportOnlyAssetFromNonReserve(api, 'Hydration', 'AssetHubPolkadot', vdot)).toBe(
+        true
+      )
+    })
+
+    it('is false from the reserve itself, to other chains, from AssetHub and for other assets', () => {
+      expect(
+        isAhTeleportOnlyAssetFromNonReserve(api, 'BifrostPolkadot', 'AssetHubPolkadot', vdot)
+      ).toBe(false)
+      expect(isAhTeleportOnlyAssetFromNonReserve(api, 'Astar', 'Hydration', vdot)).toBe(false)
+      expect(isAhTeleportOnlyAssetFromNonReserve(api, 'AssetHubPolkadot', 'Hydration', vdot)).toBe(
+        false
+      )
+      expect(isAhTeleportOnlyAssetFromNonReserve(api, 'Astar', 'AssetHubPolkadot', asset)).toBe(
+        false
+      )
+    })
   })
 })
