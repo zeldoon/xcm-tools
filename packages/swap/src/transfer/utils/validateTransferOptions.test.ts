@@ -1,9 +1,17 @@
-import { MissingParameterError, ScenarioNotSupportedError } from '@paraspell/sdk-core';
+import {
+  MissingParameterError,
+  ScenarioNotSupportedError,
+  ValidationError,
+} from '@paraspell/sdk-core';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { TBuildTransactionsOptions } from '../../types';
 import { validateDestinationAddress } from '../../utils/validateDestinationAddress';
-import { validateRoutedFeeAsset, validateTransferOptions } from './validateTransferOptions';
+import {
+  validateRoutedFeeAsset,
+  validateSlippagePct,
+  validateTransferOptions,
+} from './validateTransferOptions';
 
 vi.mock('../../utils/validateDestinationAddress');
 
@@ -126,5 +134,29 @@ describe('validateRoutedFeeAsset', () => {
 
   it('should not throw without a fee asset', () => {
     expect(() => validateRoutedFeeAsset({ feeAsset: undefined })).not.toThrow();
+  });
+});
+
+describe('validateSlippagePct', () => {
+  it.each(['0', '0.5', '1', '100', undefined])('should accept slippage %s', (slippage) => {
+    expect(() => validateSlippagePct(slippage)).not.toThrow();
+  });
+
+  it.each(['-1', '100.5', '150', 'NaN', 'Infinity', 'abc', '', ' '])(
+    'should throw ValidationError for slippage "%s"',
+    (slippage) => {
+      expect(() => validateSlippagePct(slippage)).toThrow(ValidationError);
+    },
+  );
+
+  it('should be enforced by validateTransferOptions', () => {
+    const mockOptions = {
+      sender: 'someAddress',
+      from: 'Hydration',
+      exchange: 'HydrationDex',
+      slippagePct: '150',
+    } as unknown as TBuildTransactionsOptions<unknown, unknown, unknown>;
+
+    expect(() => validateTransferOptions(mockOptions)).toThrow(ValidationError);
   });
 });

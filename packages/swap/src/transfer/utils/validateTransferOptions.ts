@@ -3,6 +3,7 @@ import {
   isChainEvm,
   MissingParameterError,
   ScenarioNotSupportedError,
+  ValidationError,
 } from '@paraspell/sdk-core';
 import { ethers } from 'ethers-v6';
 
@@ -12,7 +13,7 @@ import { validateDestinationAddress } from '../../utils/validateDestinationAddre
 export const validateTransferOptions = <TApi, TRes, TSigner, TCustomChain extends string = never>(
   options: TBuildTransactionsOptions<TApi, TRes, TSigner, TCustomChain>,
 ) => {
-  const { from, exchange, evmSenderAddress, sender, recipient, to } = options;
+  const { from, exchange, evmSenderAddress, sender, recipient, to, slippagePct } = options;
 
   if (exchange === undefined && from === undefined) {
     throw new MissingParameterError('from', 'Origin chain is required when exchange is auto');
@@ -36,6 +37,20 @@ export const validateTransferOptions = <TApi, TRes, TSigner, TCustomChain extend
 
   if (from && isChainEvm(from) && !evmSenderAddress) {
     throw new MissingParameterError('evmSenderAddress', 'EVM sender address is required');
+  }
+
+  validateSlippagePct(slippagePct);
+};
+
+// Exchanges compute minAmountOut = amountOut * (100 - slippage) / 100. Anything outside
+// 0-100 yields a negative (u128-wrapped) or inflated minimum, and NaN crashes BigInt().
+export const validateSlippagePct = (slippagePct: string | number | undefined) => {
+  if (slippagePct === undefined) return;
+  const pct = String(slippagePct).trim() === '' ? NaN : Number(slippagePct);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+    throw new ValidationError(
+      `Slippage must be a number between 0 and 100, got ${String(slippagePct)}.`,
+    );
   }
 };
 
