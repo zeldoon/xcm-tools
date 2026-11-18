@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { PolkadotApi } from '../../api'
-import { UnsupportedOperationError } from '../../errors'
+import { UnsupportedOperationError, ValidationError } from '../../errors'
 import type { TSwapExtension } from '../../extensions'
 import { registerSwapExtension } from '../../extensions'
 import type { TApiOrUrl, TBuilderOptions, TTransferOptionsWithSwap } from '../../types'
@@ -130,6 +130,35 @@ describe('swapUtils', () => {
       expect(mockBuilderInstance.onStatusChange).not.toHaveBeenCalled()
       expect(result).toBe(mockBuilderInstance)
     })
+
+    it.each([0, 0.5, 100, '3'])('should accept slippage %s', slippage => {
+      const options = createBaseOptions({
+        swapOptions: {
+          currencyTo: { symbol: 'GLMR' },
+          exchange: undefined,
+          slippage: slippage as number
+        }
+      })
+
+      createSwapBuilder(options)
+
+      expect(mockBuilderInstance.slippagePct).toHaveBeenCalledWith(String(slippage))
+    })
+
+    it.each([-1, 100.5, 150, NaN, Infinity, 'abc', ''])(
+      'should throw ValidationError for slippage %s',
+      slippage => {
+        const options = createBaseOptions({
+          swapOptions: {
+            currencyTo: { symbol: 'GLMR' },
+            exchange: undefined,
+            slippage: slippage as number
+          }
+        })
+
+        expect(() => createSwapBuilder(options)).toThrow(ValidationError)
+      }
+    )
 
     it('should forward the fee asset to the swap builder', () => {
       const options = createBaseOptions({ feeAsset: { symbol: 'USDT' } })

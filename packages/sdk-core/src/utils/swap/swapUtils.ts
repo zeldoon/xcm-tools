@@ -1,5 +1,5 @@
 import { DEFAULT_SWAP_SLIPPAGE, EXCHANGE_CHAINS } from '../../constants'
-import { UnsupportedOperationError } from '../../errors'
+import { UnsupportedOperationError, ValidationError } from '../../errors'
 import { getSwapExtensionOrThrow } from '../../extensions'
 import type {
   TApiOrUrl,
@@ -89,6 +89,17 @@ export const createSwapBuilder = <TApi, TRes, TSigner, TCustomChain extends stri
 
   if (Array.isArray(currency)) {
     throw new UnsupportedOperationError('Swaps with multiple currencies are not supported.')
+  }
+
+  // Exchanges compute minAmountOut = amountOut * (100 - slippage) / 100. Anything outside
+  // 0-100 yields a negative (u128-wrapped) or inflated minimum, and NaN crashes BigInt().
+  if (slippage !== undefined) {
+    const pct = String(slippage).trim() === '' ? NaN : Number(slippage)
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      throw new ValidationError(
+        `Slippage must be a number between 0 and 100, got ${String(slippage)}.`
+      )
+    }
   }
 
   let builder = SwapBuilder(api)
