@@ -1,8 +1,10 @@
 // Contains detailed structure of XCM call construction for Xode Parachain
 
+import type { TAssetInfo } from '@paraspell/assets'
 import type { TChain } from '@paraspell/sdk-common'
-import { Version } from '@paraspell/sdk-common'
+import { deepEqual, Version } from '@paraspell/sdk-common'
 
+import { RELAY_LOCATION } from '../../constants'
 import { ScenarioNotSupportedError } from '../../errors'
 import { transferPolkadotXcm } from '../../pallets/polkadotXcm'
 import type {
@@ -38,6 +40,15 @@ class Xode<TApi, TRes, TSigner, TCustomChain extends string = never>
 
   canReceiveFrom<TCustomChain extends string = never>(origin: TChain | TCustomChain): boolean {
     return origin === 'AssetHubPolkadot'
+  }
+
+  canReceiveAssetFrom<TCustomChain extends string = never>(
+    _origin: TChain | TCustomChain,
+    asset: TAssetInfo
+  ): boolean {
+    // Xode still trusts only the relay chain as the DOT reserve, DOT reserve-transferred from
+    // AssetHub fails there with UntrustedReserveLocation and gets trapped
+    return !deepEqual(asset.location, RELAY_LOCATION)
   }
 
   protected getMintConfig(): TMintConfig {

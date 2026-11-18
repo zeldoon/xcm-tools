@@ -1,4 +1,4 @@
-import { InvalidCurrencyError } from '@paraspell/assets'
+import { InvalidCurrencyError, type TAssetInfo } from '@paraspell/assets'
 import { Version } from '@paraspell/sdk-common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -115,5 +115,18 @@ describe('Xode', () => {
 
       expect(() => chain.transferLocalNonNativeAsset(options)).toThrow(InvalidCurrencyError)
     })
+  })
+
+  it('does not accept DOT from AssetHubPolkadot but accepts other assets', () => {
+    const dot = { symbol: 'DOT', location: { parents: 1, interior: { Here: null } } } as TAssetInfo
+    const usdt = {
+      symbol: 'USDT',
+      location: {
+        parents: 1,
+        interior: { X3: [{ Parachain: 1000 }, { PalletInstance: 50 }, { GeneralIndex: 1984 }] }
+      }
+    } as TAssetInfo
+    expect(chain.canReceiveAssetFrom('AssetHubPolkadot', dot)).toBe(false)
+    expect(chain.canReceiveAssetFrom('AssetHubPolkadot', usdt)).toBe(true)
   })
 })

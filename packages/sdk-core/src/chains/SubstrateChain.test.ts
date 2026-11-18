@@ -239,6 +239,7 @@ describe('Parachain', () => {
     vi.mocked(resolveDestChain).mockReturnValue('Hydration')
     vi.mocked(getChain).mockReturnValue({
       canReceiveFrom: () => true,
+      canReceiveAssetFrom: () => true,
       isReceivingTempDisabled: () => false
     } as unknown as ReturnType<typeof chains<unknown, unknown, unknown>>['Hydration'])
 
@@ -281,6 +282,7 @@ describe('Parachain', () => {
     vi.mocked(resolveDestChain).mockReturnValue('Hydration')
     vi.mocked(getChain).mockReturnValue({
       canReceiveFrom: () => true,
+      canReceiveAssetFrom: () => true,
       isReceivingTempDisabled: () => false
     } as unknown as ReturnType<typeof chains<unknown, unknown, unknown>>['Hydration'])
     const deserializeExtrinsicsSpy = vi
@@ -373,6 +375,32 @@ describe('Parachain', () => {
     await expect(chain.transfer(options)).rejects.toThrow(ScenarioNotSupportedError)
   })
 
+  it('throws when destination chain does not accept the asset from origin (canReceiveAssetFrom=false)', async () => {
+    const chain = new TestParachain('AssetHubPolkadot', 'TestChain', 'Polkadot', Version.V4)
+
+    vi.mocked(resolveDestChain).mockReturnValue('Xode')
+
+    vi.mocked(getChain).mockReturnValue({
+      canReceiveFrom: () => true,
+      canReceiveAssetFrom: () => false,
+      isReceivingTempDisabled: () => false
+    } as unknown as ReturnType<typeof chains<unknown, unknown, unknown>>['Xode'])
+
+    const options = {
+      api,
+      to: 'Xode',
+      assetInfo: { symbol: 'DOT', amount: 100n, location: DOT_LOCATION },
+      recipient: 'destinationAddress'
+    } as TTransferInternalOptions<unknown, unknown, unknown>
+
+    const spy = vi.spyOn(chain, 'transferPolkadotXCM')
+
+    await expect(chain.transfer(options)).rejects.toThrow(
+      'Xode does not accept DOT from AssetHubPolkadot'
+    )
+    expect(spy).not.toHaveBeenCalled()
+  })
+
   it('proceeds when destination chain can receive from origin (canReceiveFrom=true)', async () => {
     const chain = new TestParachain('Acala', 'TestChain', 'Polkadot', Version.V4)
 
@@ -380,6 +408,7 @@ describe('Parachain', () => {
 
     vi.mocked(getChain).mockReturnValue({
       canReceiveFrom: () => true,
+      canReceiveAssetFrom: () => true,
       isReceivingTempDisabled: () => false
     } as unknown as ReturnType<typeof chains<unknown, unknown, unknown>>['Acala'])
 

@@ -130,7 +130,7 @@ abstract class SubstrateChain<
     }
 
     this.throwIfTempDisabled(transferOptions, destChain)
-    this.throwIfCantReceive(destChain)
+    this.throwIfCantReceive(destChain, asset)
 
     const isRelayAsset =
       deepEqual(asset.location, RELAY_LOCATION) &&
@@ -275,11 +275,16 @@ abstract class SubstrateChain<
     return true
   }
 
-  throwIfCantReceive(destChain: TChain | undefined): void {
+  throwIfCantReceive(destChain: TChain | undefined, asset?: TAssetInfo): void {
     if (destChain && !isExternalChain(destChain)) {
       const dest = getChain(destChain)
       if (!dest.canReceiveFrom(this.chain)) {
         throw new ScenarioNotSupportedError(`Receiving from ${this.chain} is not yet enabled`)
+      }
+      if (asset && !dest.canReceiveAssetFrom(this.chain, asset)) {
+        throw new ScenarioNotSupportedError(
+          `${destChain} does not accept ${asset.symbol} from ${this.chain}`
+        )
       }
     }
   }
@@ -316,6 +321,14 @@ abstract class SubstrateChain<
 
   canReceiveFrom<TCustomChain extends string = never>(_origin: TChain | TCustomChain): boolean {
     // Default: destination accepts from any origin
+    return true
+  }
+
+  canReceiveAssetFrom<TCustomChain extends string = never>(
+    _origin: TChain | TCustomChain,
+    _asset: TAssetInfo
+  ): boolean {
+    // Default: destination accepts every asset it can receive from the origin
     return true
   }
 
