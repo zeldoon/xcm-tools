@@ -38,12 +38,13 @@ const examples = [
   },
   {
     label: "AccountId32",
-    output: "./AccountId32(null, accountID)",
+    output:
+      "./AccountId32(null, 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d)",
     code: `convertLocationToUrl({
   parents: 0,
   interior: {
     X1: {
-      AccountId32: { network: null, id: 'accountID' }
+      AccountId32: { network: null, id: '0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d' }
     }
   }
 })`,

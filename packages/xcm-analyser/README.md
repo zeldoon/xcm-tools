@@ -95,7 +95,7 @@ import { convertLocationToUrlJson } from '@paraspell/xcm-analyser';
       }
     }`*/
 
-const result = convertLocationToUrl(locationJson);
+const result = convertLocationToUrlJson(locationJson);
 
 /*
 This should result into:
@@ -129,7 +129,7 @@ import { convertXCMToUrls } from '@paraspell/xcm-analyser';
         X1: {
           AccountId32: {
             network: null,
-            id: 'accountID',
+            id: '0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d',
           },
         },
       },
@@ -160,7 +160,7 @@ const urls = convertXCMToUrls(xcmCallArguments);
 This should result into:
 [
   '../Parachain(2006)',
-  './AccountId32(null, accountID)',
+  './AccountId32(null, 0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d)',
   './PalletInstance(50)/GeneralIndex(1984)',
 ]
 */
