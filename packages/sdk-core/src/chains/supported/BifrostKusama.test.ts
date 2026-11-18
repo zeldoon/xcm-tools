@@ -17,4 +17,8 @@ describe('BifrostKusama', () => {
     expect(bifrostKusama.ecosystem).toBe('Kusama')
     expect(bifrostKusama.version).toBe(Version.V5)
   })
+
+  it('should return false for isRelayToParaEnabled', () => {
+    expect(bifrostKusama.isRelayToParaEnabled()).toBe(false)
+  })
 })

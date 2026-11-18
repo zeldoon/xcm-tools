@@ -37,6 +37,12 @@ class Unique<TApi, TRes, TSigner, TCustomChain extends string = never>
     return transferPolkadotXcm(input)
   }
 
+  // Only AssetHub is trusted as the DOT/KSM reserve here, a reserve transfer from the relay chain
+  // fails with UntrustedReserveLocation and the assets get trapped
+  isRelayToParaEnabled(): boolean {
+    return false
+  }
+
   transferLocalNonNativeAsset(
     options: TTransferLocalOptions<TApi, TRes, TSigner, TCustomChain>
   ): TRes {

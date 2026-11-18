@@ -102,4 +102,8 @@ describe('BifrostPolkadot', () => {
       })
     })
   })
+
+  it('should return false for isRelayToParaEnabled', () => {
+    expect(chain.isRelayToParaEnabled()).toBe(false)
+  })
 })
