@@ -1,3 +1,4 @@
+import type { TAssetInfo } from '@paraspell/assets'
 import { Version } from '@paraspell/sdk-common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -178,5 +179,27 @@ describe('NeuroWeb', () => {
         }
       })
     })
+  })
+
+  it('does not accept NEURO from AssetHubPolkadot', () => {
+    const neuro = {
+      symbol: 'NEURO',
+      location: { parents: 1, interior: { X2: [{ Parachain: 2043 }, { PalletInstance: 10 }] } }
+    } as TAssetInfo
+    const trac = {
+      symbol: 'TRAC',
+      location: {
+        parents: 2,
+        interior: {
+          X2: [
+            { GlobalConsensus: { Ethereum: { chainId: 1 } } },
+            { AccountKey20: { key: '0xaa7a9ca87d3694b5755f213b5d04094b8d0f0a6f' } }
+          ]
+        }
+      }
+    } as TAssetInfo
+    expect(chain.canReceiveAssetFrom('AssetHubPolkadot', neuro)).toBe(false)
+    expect(chain.canReceiveAssetFrom('Hydration', neuro)).toBe(true)
+    expect(chain.canReceiveAssetFrom('AssetHubPolkadot', trac)).toBe(true)
   })
 })

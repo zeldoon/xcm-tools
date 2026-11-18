@@ -1,7 +1,8 @@
 // Contains detailed structure of XCM call construction for OriginTrail Parachain
 
-import type { TParachain, TRelaychain } from '@paraspell/sdk-common'
-import { Version } from '@paraspell/sdk-common'
+import type { TAssetInfo } from '@paraspell/assets'
+import type { TChain, TParachain, TRelaychain } from '@paraspell/sdk-common'
+import { getJunctionValue, Version } from '@paraspell/sdk-common'
 
 import { transferPolkadotXcm } from '../../pallets/polkadotXcm'
 import type { TMintConfig, TTransferLocalOptions } from '../../types'
@@ -19,6 +20,18 @@ class NeuroWeb<TApi, TRes, TSigner, TCustomChain extends string = never>
     version: Version = Version.V4
   ) {
     super(chain, info, ecosystem, version)
+  }
+
+  canReceiveAssetFrom<TCustomChain extends string = never>(
+    origin: TChain | TCustomChain,
+    asset: TAssetInfo
+  ): boolean {
+    // NeuroWeb cannot weigh ReceiveTeleportedAsset (XcmPaymentApi returns WeightNotComputable),
+    // and AssetHub's sovereign account holds no NEURO for a reserve withdraw. NEURO sent from
+    // AssetHub is burned there and the message fails on NeuroWeb, so the funds are lost.
+    const isNeuroWebAsset =
+      asset.location.parents === 1 && getJunctionValue(asset.location, 'Parachain') === 2043
+    return !(origin.startsWith('AssetHub') && isNeuroWebAsset)
   }
 
   protected getMintConfig(): TMintConfig {
