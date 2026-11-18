@@ -99,6 +99,26 @@ describe('AssetsService', () => {
       expect(result).toEqual(JSON.stringify(assetLocation));
       expect(getAssetLocationSpy).toHaveBeenCalledWith(chain, { symbol });
     });
+
+    it('should throw BadRequestException when the currency is ambiguous', () => {
+      getAssetLocationSpy.mockImplementation(() => {
+        throw new paraspellSdk.DuplicateAssetError('Multiple assets found');
+      });
+
+      expect(() =>
+        service.getAssetLocation(chain, { currency: { symbol: 'USDT' } }),
+      ).toThrow(BadRequestException);
+    });
+
+    it('should return 400 for an ambiguous symbol on a real chain', () => {
+      getAssetLocationSpy.mockRestore();
+
+      expect(() =>
+        service.getAssetLocation('Hydration', {
+          currency: { symbol: 'USDT' },
+        }),
+      ).toThrow(BadRequestException);
+    });
   });
 
   describe('getAssetInfo', () => {
@@ -106,6 +126,26 @@ describe('AssetsService', () => {
 
     beforeEach(() => {
       getAssetInfoSpy = vi.spyOn(paraspellSdk, 'findAssetInfo');
+    });
+
+    it('should throw BadRequestException when the currency is ambiguous', () => {
+      getAssetInfoSpy.mockImplementation(() => {
+        throw new paraspellSdk.DuplicateAssetIdError('0');
+      });
+
+      expect(() =>
+        service.getAssetInfo(chain, { currency: { id: '0' } }),
+      ).toThrow(BadRequestException);
+    });
+
+    it('should return 400 for an ambiguous symbol on a real chain', () => {
+      getAssetInfoSpy.mockRestore();
+
+      expect(() =>
+        service.getAssetInfo('AssetHubPolkadot', {
+          currency: { symbol: 'USDC' },
+        }),
+      ).toThrow(BadRequestException);
     });
 
     it('should return asset info for a valid chain and symbol', () => {
