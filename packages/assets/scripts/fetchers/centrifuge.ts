@@ -1,34 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { TLocation } from '@paraspell/sdk-common'
 import type { PolkadotClient } from 'polkadot-api'
 
 import type { TAssetInfoNoLoc } from '../types'
 import { decodeSymbol, normalizeLocation } from '../utils/codecUtils'
 import { edString } from '../utils'
 
-const locationOverrides: Record<string, TLocation> = {
-  USD: {
-    parents: 1,
-    interior: { X3: [{ Parachain: 1000 }, { PalletInstance: 50 }, { GeneralIndex: 1984 }] }
-  }
-}
-
 export const fetchCentrifugeAssets = async (client: PolkadotClient): Promise<TAssetInfoNoLoc[]> => {
   const api = client.getUnsafeApi()
   const entries = await api.query.OrmlAssetRegistry.Metadata.getEntries()
 
+  // Only ForeignAsset(id) entries can be selected by the SDK (Centrifuge uses
+  // { ForeignAsset: id } as currency id). LocalAsset(id) and Tranche(..) ids live in a
+  // different id space, so mapping them to assetId would collide with ForeignAsset ids.
   return entries
-    .filter(({ keyArgs: [key] }: any) => key?.type !== 'Native')
-    .map(({ keyArgs: [key], value }: any) => {
-      const symbol = decodeSymbol(value.symbol)
-      return {
-        assetId: key.type === 'Tranche' ? String(key.value[0]) : String(key.value),
-        symbol,
-        decimals: value.decimals,
-        location: normalizeLocation(value.location) ?? locationOverrides[symbol],
-        existentialDeposit: edString(value)
-      }
-    })
+    .filter(({ keyArgs: [key] }: any) => key?.type === 'ForeignAsset')
+    .map(({ keyArgs: [key], value }: any) => ({
+      assetId: String(key.value),
+      symbol: decodeSymbol(value.symbol),
+      decimals: value.decimals,
+      location: normalizeLocation(value.location),
+      existentialDeposit: edString(value)
+    }))
 }
 
 export const fetchCentrifugeNativeAssets = async (
